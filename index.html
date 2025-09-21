@@ -132,7 +132,7 @@
                     <div id="mediaPlaceholder" class="flex items-center justify-center h-48 bg-gray-200 rounded-xl text-gray-500">
                         Start your camera or upload a file above.
                     </div>
-                    
+
                     <!-- Error/Permission message -->
                     <p id="videoMessage" class="hidden text-center text-red-600 p-4"></p>
                 </div>
@@ -274,28 +274,48 @@
             imagePreviewElement.classList.add('hidden');
             videoElement.classList.remove('hidden');
             videoMessage.classList.add('hidden');
-            
+
+            // --- FIX START: Request the rear-facing camera first ---
+            const videoConstraints = {
+                video: {
+                    facingMode: 'environment' // Request rear camera
+                }
+            };
+            // --- FIX END ---
+
             // Activate camera
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                // Try to get the environment camera
+                let stream = await navigator.mediaDevices.getUserMedia(videoConstraints);
                 videoElement.srcObject = stream;
                 videoStream = stream;
                 isCameraActive = true;
                 videoElement.play(); // Start playback
                 cameraButton.textContent = "Stop Camera";
                 captureButton.disabled = false;
-
-                // Ensure video controls are off during live stream
                 videoElement.removeAttribute('controls');
-                
+
             } catch (err) {
-                console.error("Error accessing the camera: ", err);
-                videoElement.classList.add('hidden');
-                mediaPlaceholder.classList.remove('hidden');
-                videoMessage.textContent = 'Camera access failed. Please ensure you are on HTTPS and granted permissions.';
-                videoMessage.classList.remove('hidden');
-                captureButton.disabled = true;
-                isCameraActive = false;
+                // Fallback: If 'environment' fails (e.g., on a desktop with no rear camera), try any camera.
+                try {
+                    let stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    videoElement.srcObject = stream;
+                    videoStream = stream;
+                    isCameraActive = true;
+                    videoElement.play();
+                    cameraButton.textContent = "Stop Camera";
+                    captureButton.disabled = false;
+                    videoElement.removeAttribute('controls');
+                } catch (fallbackError) {
+                    // Both attempts failed
+                    console.error("Error accessing the camera: ", fallbackError);
+                    videoElement.classList.add('hidden');
+                    mediaPlaceholder.classList.remove('hidden');
+                    videoMessage.textContent = 'Camera access failed. Please ensure you are on HTTPS and granted permissions.';
+                    videoMessage.classList.remove('hidden');
+                    captureButton.disabled = true;
+                    isCameraActive = false;
+                }
             }
         }
 
@@ -308,22 +328,22 @@
 
             // Stop camera if running
             stopCamera();
-            
+
             // Hide placeholder and error messages
             mediaPlaceholder.classList.add('hidden');
             hideError();
 
             const fileUrl = URL.createObjectURL(file);
-            
+
             if (fileType === 'video') {
                 imagePreviewElement.classList.add('hidden');
                 videoElement.src = fileUrl;
                 videoElement.classList.remove('hidden');
                 captureButton.disabled = false;
-                
+
                 // Show controls for scrubbing uploaded video
                 videoElement.setAttribute('controls', 'true');
-                
+
                 // Reset captured image state
                 capturedImageBase64 = null;
                 decodeButton.disabled = true;
@@ -332,11 +352,11 @@
                 videoElement.classList.add('hidden');
                 imagePreviewElement.src = fileUrl;
                 imagePreviewElement.classList.remove('hidden');
-                
+
                 // Set the canvas up to process the image directly upon captureFrame call
-                capturedImageBase64 = null; 
+                capturedImageBase64 = null;
                 captureButton.disabled = false;
-                decodeButton.disabled = true; 
+                decodeButton.disabled = true;
             }
         }
 
@@ -351,12 +371,12 @@
                 showError("Please load media (live camera, video, or image) before capturing a frame.");
                 return;
             }
-            
+
             // Determine source dimensions
             let source = isImageReady ? imagePreviewElement : videoElement;
             const sourceWidth = source.naturalWidth || source.videoWidth;
             const sourceHeight = source.naturalHeight || source.videoHeight;
-            
+
             if (sourceWidth === 0 || sourceHeight === 0) {
                  showError("Media source is not ready. Please ensure the video is playing or the image has fully loaded.");
                  return;
@@ -372,10 +392,10 @@
 
             // Convert canvas content to a base64 data URL
             const dataUrl = capturedCanvas.toDataURL('image/jpeg', 0.8); // 80% quality for smaller size
-            
+
             // Format for Gemini API (remove the data URI header)
             capturedImageBase64 = dataUrl.split(',')[1];
-            
+
             // Display the captured image preview (important for uploaded video/live stream confirmation)
             imagePreviewElement.src = dataUrl;
             imagePreviewElement.classList.remove('hidden');
@@ -421,7 +441,7 @@
                 showError("Please capture an image of your dog before analyzing.");
                 return;
             }
-            
+
             const userQuery = inputElement.value.trim() || "Analyze the body language of the dog in this photo.";
 
             // UI State: Loading
@@ -431,7 +451,7 @@
             const apiUrl = `${API_BASE_URL}/${MODEL_NAME}:generateContent?key=${apiKey}`;
 
             const payload = {
-                contents: [{ 
+                contents: [{
                     parts: [
                         { text: userQuery },
                         {
