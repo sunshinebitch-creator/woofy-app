@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WOOFY - Dog Body Language Decoder (Video & Image Analysis)</title>
+    <title>WOOFY - Dog Body Language Decoder (Image Analysis)</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Configure Tailwind for custom colors and font -->
@@ -16,7 +16,7 @@
                         'woofy-dark': '#1f2937', // Dark gray (Text/Header)
                         'woofy-light': '#f9fafb', // Light gray/off-white (Background)
                         'woofy-red': '#ef4444', // Red (Action/WOOF button)
-                        'woofy-yellow': '#f59e0b', // Amber (Secondary Upload)
+                        'woofy-yellow': '#f59e0b', // Amber (Secondary Upload - kept for styling consistency)
                     },
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
@@ -83,6 +83,13 @@
             border: 4px solid #10b981 !important; /* Woofy Blue highlight */
             box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
         }
+
+        /* Custom style for the output report card */
+        #aiResponse {
+            background-color: white; 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); /* Lighter shadow for the report */
+            border: 1px solid #e5e7eb;
+        }
     </style>
 </head>
 <body class="bg-woofy-light font-sans antialiased">
@@ -106,28 +113,23 @@
                     <span>1. Capture or Upload</span>
                 </h2>
 
-                <!-- Input Buttons -->
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                <!-- Input Buttons (Simplified 2-Column Grid) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                     <button id="cameraButton" onclick="toggleCamera()"
-                        class="px-4 py-3 bg-woofy-blue text-white font-medium rounded-lg shadow hover:bg-woofy-blue/90 transition disabled:bg-gray-400">
+                        class="px-4 py-3 bg-woofy-blue text-white font-medium rounded-lg shadow hover:bg-woofy-blue/90 transition disabled:bg-gray-400 active:scale-[0.98]">
                         Use Camera
                     </button>
-                    <!-- File input for videos -->
-                    <input type="file" id="videoFileInput" accept="video/*" onchange="handleFileSelect(event, 'video')">
-                    <label for="videoFileInput" class="flex items-center justify-center px-4 py-3 bg-woofy-yellow text-white font-medium rounded-lg shadow cursor-pointer hover:bg-woofy-yellow/90 transition">
-                        Upload Video
-                    </label>
                     <!-- File input for images -->
-                    <input type="file" id="imageFileInput" accept="image/*" onchange="handleFileSelect(event, 'image')">
-                    <label for="imageFileInput" class="flex items-center justify-center px-4 py-3 bg-gray-600 text-white font-medium rounded-lg shadow cursor-pointer hover:bg-gray-700 transition">
+                    <input type="file" id="imageFileInput" accept="image/*" onchange="handleFileSelect(event)">
+                    <label for="imageFileInput" class="flex items-center justify-center px-4 py-3 bg-gray-600 text-white font-medium rounded-lg shadow cursor-pointer hover:bg-gray-700 transition active:scale-[0.98]">
                         Upload Image
                     </label>
                 </div>
 
 
                 <div id="mediaArea" class="relative mb-4">
-                    <!-- Video element for live stream or file playback -->
-                    <video id="video" playsinline class="hidden" controls></video>
+                    <!-- Video element is kept but hidden/not used for simplicity -->
+                    <video id="video" playsinline class="hidden"></video>
                     <!-- Image element for captured preview (initially hidden) -->
                     <img id="imagePreview" class="hidden" alt="Captured dog image">
 
@@ -143,9 +145,9 @@
                     <p id="videoMessage" class="hidden text-center text-red-600 p-4"></p>
                 </div>
 
-                <!-- Capture Button (shared for live camera and uploaded video) -->
+                <!-- Capture Button (Only used for live camera now) -->
                 <button id="captureButton" onclick="captureFrame()" disabled
-                    class="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-woofy-red text-white font-bold text-base rounded-full shadow-lg hover:shadow-woofy-red/50 transform hover:scale-[1.01] transition duration-200 focus:outline-none focus:ring-4 focus:ring-woofy-red/70 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    class="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-woofy-red text-white font-bold text-base rounded-full shadow-lg hover:shadow-woofy-red/50 transform hover:scale-[1.01] transition duration-200 focus:outline-none focus:ring-4 focus:ring-woofy-red/70 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed active:scale-[0.98]">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
                         <path d="M4.5 4.5a3 3 0 00-3 3v9a3 3 0 003 3h15a3 3 0 003-3v-9a3 3 0 00-3-3h-1.373a1.5 1.5 0 01-1.06-.395l-1.428-1.428A1.5 1.5 0 0013.06 2.25h-4.125a1.5 1.5 0 00-1.06.395L6.873 7.5a.75.75 0 01-.53.197H4.5z" />
                         <path fill-rule="evenodd" d="M12 12a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
@@ -162,13 +164,13 @@
                     <span>2. Add Context (Optional)</span>
                 </h2>
                 <textarea id="bodyLanguageInput" rows="2" placeholder="Example: They are meeting a new dog / She is waiting for me to throw the ball."
-                    class="w-full p-3 border border-gray-300 rounded-xl focus:border-woofy-blue focus:ring-1 focus:ring-woofy-blue transition duration-150 resize-none text-gray-700"></textarea>
+                    class="w-full p-3 border border-gray-300 rounded-xl focus:border-woofy-blue focus:ring-2 focus:ring-offset-2 focus:ring-woofy-blue transition duration-150 resize-none text-gray-700"></textarea>
             </section>
 
             <!-- 3. Action Button (The "WOOF!" button) -->
             <div class="flex justify-center mb-8">
                 <button id="decodeButton" onclick="decodeBodyLanguage()" disabled
-                    class="flex items-center justify-center space-x-2 px-12 py-5 bg-woofy-red text-white font-black text-2xl uppercase rounded-full shadow-2xl shadow-woofy-red/40 transform hover:scale-[1.05] transition duration-200 focus:outline-none focus:ring-8 focus:ring-woofy-red/80 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    class="flex items-center justify-center space-x-2 px-12 py-5 bg-woofy-red text-white font-black text-2xl uppercase rounded-full shadow-2xl shadow-woofy-red/40 transform hover:scale-[1.05] transition duration-200 focus:outline-none focus:ring-8 focus:ring-woofy-red/80 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed active:scale-[0.98]">
                     <span id="buttonText">WOOF!</span>
                     <div id="loadingSpinner" class="spinner hidden w-6 h-6 border-4"></div>
                 </button>
@@ -202,7 +204,9 @@
         // Global constants and variables
         const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
         const MODEL_NAME = 'gemini-2.5-flash-preview-05-20';
-        const apiKey = ""; // API Key will be automatically provided by the environment
+        // The API Key is intentionally left blank. In this Google-hosted environment, 
+        // the API key is automatically supplied via a proxy for security and ease of use.
+        const apiKey = ""; 
 
         // DOM Elements
         const videoElement = document.getElementById('video');
@@ -302,7 +306,6 @@
                 videoElement.play(); // Start playback
                 cameraButton.textContent = "Stop Camera";
                 captureButton.disabled = false;
-                videoElement.removeAttribute('controls');
 
             } catch (err) {
                 // Fallback: If 'environment' fails, try any camera.
@@ -314,7 +317,6 @@
                     videoElement.play();
                     cameraButton.textContent = "Stop Camera";
                     captureButton.disabled = false;
-                    videoElement.removeAttribute('controls');
                 } catch (fallbackError) {
                     // Both attempts failed
                     console.error("Error accessing the camera: ", fallbackError);
@@ -329,9 +331,10 @@
         }
 
         /**
-         * Handles file selection (Video or Image) and loads it into the appropriate element.
+         * Handles file selection (Image only now) and loads it into the appropriate element.
+         * The 'fileType' parameter is no longer needed but kept in the HTML call for structure.
          */
-        function handleFileSelect(event, fileType) {
+        function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -345,38 +348,24 @@
             const fileUrl = URL.createObjectURL(file);
             mediaArea.classList.remove('media-ready'); // Remove highlight initially
 
-            if (fileType === 'video') {
-                imagePreviewElement.classList.add('hidden');
-                videoElement.src = fileUrl;
-                videoElement.classList.remove('hidden');
-                captureButton.disabled = false;
+            // Handle Image Upload
+            videoElement.classList.add('hidden');
+            imagePreviewElement.src = fileUrl;
+            imagePreviewElement.classList.remove('hidden');
 
-                // Show controls for scrubbing uploaded video
-                videoElement.setAttribute('controls', 'true');
+            // When the image loads, automatically capture the frame to generate Base64 data.
+            imagePreviewElement.onload = () => {
+                captureFrame(true); // true tells captureFrame to flash the button text
+                imagePreviewElement.onload = null; // Remove the listener
+            };
 
-                // Reset captured image state
-                capturedImageBase64 = null;
-                decodeButton.disabled = true;
-
-            } else if (fileType === 'image') {
-                videoElement.classList.add('hidden');
-                imagePreviewElement.src = fileUrl;
-                imagePreviewElement.classList.remove('hidden');
-
-                // FIX: When the image loads, automatically capture the frame to generate Base64 data.
-                imagePreviewElement.onload = () => {
-                    captureFrame(true); // true tells captureFrame to flash the button text
-                    imagePreviewElement.onload = null; // Remove the listener
-                };
-
-                // We reset this state, captureFrame() will enable it upon successful capture
-                capturedImageBase64 = null;
-                decodeButton.disabled = true;
-            }
+            capturedImageBase64 = null;
+            captureButton.disabled = true; // Disable capture button as we auto-capture the image
+            decodeButton.disabled = true;
         }
 
         /**
-         * Captures a single frame from the current media source (live video, uploaded video, or uploaded image).
+         * Captures a single frame from the current media source (live camera or uploaded image).
          * @param {boolean} isImageUpload - True if called automatically after an image upload.
          */
         function captureFrame(isImageUpload = false) {
@@ -384,7 +373,7 @@
             const isImageReady = !imagePreviewElement.classList.contains('hidden') && imagePreviewElement.src;
 
             if (!isVideoReady && !isImageReady) {
-                showError("Please load media (live camera, video, or image) before capturing a frame.");
+                showError("Please load media (live camera or image) before capturing a frame.");
                 return;
             }
 
@@ -394,7 +383,7 @@
             const sourceHeight = source.naturalHeight || source.videoHeight;
 
             if (sourceWidth === 0 || sourceHeight === 0) {
-                 showError("Media source is not ready. Please ensure the video is playing or the image has fully loaded.");
+                 showError("Media source is not ready. Please ensure the camera is active or the image has fully loaded.");
                  return;
             }
 
@@ -412,7 +401,7 @@
             // Format for Gemini API (remove the data URI header)
             capturedImageBase64 = dataUrl.split(',')[1];
 
-            // Display the captured image preview (important for uploaded video/live stream confirmation)
+            // Display the captured image preview 
             imagePreviewElement.src = dataUrl;
             imagePreviewElement.classList.remove('hidden');
             videoElement.classList.add('hidden'); // Hide video element
@@ -425,6 +414,8 @@
 
             // If we automatically captured an uploaded image, we update the capture button text briefly
             if (isImageUpload) {
+                // If it was an upload, the Capture Frame button is not needed, but we provide feedback
+                captureButton.disabled = true;
                 captureButton.textContent = "Image Ready!";
                 setTimeout(() => {
                     if (captureButton.textContent === "Image Ready!") {
@@ -511,7 +502,7 @@
                     let sources = [];
 
                     // Extract grounding sources
-                    const groundingMetadata = candidate.groundingMetadata;
+                    const groundingMetadata = candidate.groundingAttributions;
                     if (groundingMetadata && groundingMetadata.groundingAttributions) {
                         sources = groundingMetadata.groundingAttributions
                             .map(attribution => ({
@@ -546,7 +537,7 @@
                 .replace(/\n\n/g, '</p><p class="mt-2">') // Paragraphs
                 .replace(/\n/g, '<br/>'); // Line breaks
 
-            aiResponse.innerHTML = `<p>${htmlContent}</p>`;
+            aiResponse.innerHTML = `<p class="p-2">${htmlContent}</p>`;
             outputArea.classList.remove('hidden');
 
             // Display Sources
@@ -572,7 +563,7 @@
          */
         function setLoading(isLoading) {
             decodeButton.disabled = isLoading || !capturedImageBase64;
-            captureButton.disabled = isLoading || (!isCameraActive && !videoElement.src && !imagePreviewElement.src);
+            captureButton.disabled = isLoading || !isCameraActive; // Only disable capture if loading or camera is not active
             inputElement.disabled = isLoading;
 
             if (isLoading) {
