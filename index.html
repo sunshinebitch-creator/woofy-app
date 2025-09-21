@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WOOFY - Dog Body Language Decoder (Video & Image Analysis)</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind for custom colors and font -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'woofy-blue': '#10b981', // Emerald green
+                        'woofy-dark': '#1f2937', // Dark gray
+                        'woofy-light': '#f9fafb', // Light gray/off-white
+                        'woofy-red': '#ef4444', // Red for capture button
+                        'woofy-yellow': '#f59e0b', // Amber for upload
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar styling for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e5e7eb;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #6b7280;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+        /* Loading spinner animation */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #10b981;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        /* Ensure responsive height for mobile view */
+        #app-container {
+            min-height: 100vh;
+        }
+        /* Style for video and image/canvas elements */
+        #video, #imagePreview {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            background-color: #000; /* Black background for media area */
+            object-fit: contain; /* Ensures entire image/video is visible */
+        }
+        #capturedCanvas {
+            /* Keep canvas hidden, it's just for processing */
+            display: none;
+        }
+        .step-title {
+            @apply text-xl font-semibold text-woofy-dark mb-3 flex items-center space-x-2;
+        }
+        /* File Input Styling */
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-woofy-light font-sans antialiased">
+
+    <div id="app-container" class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 flex flex-col items-center">
+
+        <!-- Header -->
+        <header class="w-full text-center mb-8">
+            <h1 class="text-5xl font-extrabold text-woofy-dark tracking-tight mb-2">
+                WOOFY <span class="text-woofy-blue text-3xl">🐾</span>
+            </h1>
+            <p class="text-lg text-gray-500 italic">Capture, upload, and decode the moment.</p>
+        </header>
+
+        <!-- Main Card Container -->
+        <div class="w-full bg-white shadow-xl rounded-2xl p-6 md:p-10 border border-gray-100">
+
+            <!-- 1. Media Input Area -->
+            <section class="mb-8 p-4 border border-gray-200 rounded-xl bg-gray-50">
+                <h2 class="step-title">
+                    <span>1. Capture or Upload</span>
+                </h2>
+
+                <!-- Input Buttons -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                    <button id="cameraButton" onclick="toggleCamera()"
+                        class="px-4 py-3 bg-woofy-blue text-white font-medium rounded-lg shadow hover:bg-woofy-blue/90 transition disabled:bg-gray-400">
+                        Use Camera
+                    </button>
+                    <!-- File input for videos -->
+                    <input type="file" id="videoFileInput" accept="video/*" onchange="handleFileSelect(event, 'video')">
+                    <label for="videoFileInput" class="flex items-center justify-center px-4 py-3 bg-woofy-yellow text-white font-medium rounded-lg shadow cursor-pointer hover:bg-woofy-yellow/90 transition">
+                        Upload Video
+                    </label>
+                    <!-- File input for images -->
+                    <input type="file" id="imageFileInput" accept="image/*" onchange="handleFileSelect(event, 'image')">
+                    <label for="imageFileInput" class="flex items-center justify-center px-4 py-3 bg-gray-600 text-white font-medium rounded-lg shadow cursor-pointer hover:bg-gray-700 transition">
+                        Upload Image
+                    </label>
+                </div>
+
+
+                <div id="mediaArea" class="relative mb-4">
+                    <!-- Video element for live stream or file playback -->
+                    <video id="video" playsinline class="hidden" controls></video>
+                    <!-- Image element for captured preview (initially hidden) -->
+                    <img id="imagePreview" class="hidden" alt="Captured dog image">
+
+                    <!-- Canvas element to hold the captured frame (hidden from view) -->
+                    <canvas id="capturedCanvas"></canvas>
+
+                    <!-- Placeholder/Message -->
+                    <div id="mediaPlaceholder" class="flex items-center justify-center h-48 bg-gray-200 rounded-xl text-gray-500">
+                        Start your camera or upload a file above.
+                    </div>
+                    
+                    <!-- Error/Permission message -->
+                    <p id="videoMessage" class="hidden text-center text-red-600 p-4"></p>
+                </div>
+
+                <!-- Capture Button (shared for live camera and uploaded video) -->
+                <button id="captureButton" onclick="captureFrame()" disabled
+                    class="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-woofy-red text-white font-bold text-base rounded-full shadow-lg hover:shadow-woofy-red/50 transform hover:scale-[1.01] transition duration-200 focus:outline-none focus:ring-4 focus:ring-woofy-red/70 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                      <path fill-rule="evenodd" d="M1 8a2 2 0 0 1 2-2h3.5a.5.5 0 0 1 0 1H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a.5.5 0 0 1 1 0v3a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8Zm15 0a2 2 0 0 0-2-2h-3.5a.5.5 0 0 0 0 1H17a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1v-3a.5.5 0 0 0-1 0v3a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Z" clip-rule="evenodd" />
+                    </svg>
+                    <span id="captureButtonText">Capture Frame</span>
+                </button>
+            </section>
+
+
+            <!-- 2. Context Input Area -->
+            <section class="mb-8">
+                <h2 class="step-title">
+                    <span>2. Add Context (Optional)</span>
+                </h2>
+                <textarea id="bodyLanguageInput" rows="2" placeholder="Example: He just saw a squirrel / She is waiting for me to throw the ball."
+                    class="w-full p-3 border border-gray-300 rounded-xl focus:border-woofy-blue focus:ring-1 focus:ring-woofy-blue transition duration-150 resize-none text-gray-700"></textarea>
+            </section>
+
+            <!-- 3. Action Button -->
+            <div class="flex justify-center mb-8">
+                <button id="decodeButton" onclick="decodeBodyLanguage()" disabled
+                    class="flex items-center justify-center space-x-2 px-8 py-3 bg-woofy-blue text-white font-bold text-lg rounded-full shadow-lg hover:shadow-woofy-blue/50 transform hover:scale-[1.02] transition duration-200 focus:outline-none focus:ring-4 focus:ring-woofy-blue/70 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    <span id="buttonText">Analyze Photo</span>
+                    <div id="loadingSpinner" class="spinner hidden"></div>
+                </button>
+            </div>
+
+            <!-- Output Area -->
+            <section id="outputArea" class="hidden">
+                <h2 class="text-2xl font-bold text-woofy-dark border-b-2 border-woofy-blue pb-2 mb-4">
+                    WOOFY's Analysis
+                </h2>
+                <div id="aiResponse" class="p-4 bg-woofy-light border border-gray-200 rounded-xl text-gray-800 leading-relaxed min-h-[100px] overflow-auto max-h-[50vh]">
+                    <!-- AI content will be inserted here -->
+                </div>
+
+                <!-- Grounding Sources -->
+                <div id="sourcesContainer" class="mt-4 text-sm text-gray-500">
+                    <!-- Sources will be inserted here -->
+                </div>
+            </section>
+
+             <!-- Error Message Area -->
+             <div id="errorMessage" class="hidden mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                <p class="font-medium">Error:</p>
+                <p id="errorText"></p>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Global constants and variables
+        const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+        const MODEL_NAME = 'gemini-2.5-flash-preview-05-20';
+        const apiKey = ""; // API Key will be automatically provided by the environment
+
+        // DOM Elements
+        const videoElement = document.getElementById('video');
+        const imagePreviewElement = document.getElementById('imagePreview');
+        const capturedCanvas = document.getElementById('capturedCanvas');
+        const videoMessage = document.getElementById('videoMessage');
+        const mediaPlaceholder = document.getElementById('mediaPlaceholder');
+        const inputElement = document.getElementById('bodyLanguageInput');
+        const captureButton = document.getElementById('captureButton');
+        const cameraButton = document.getElementById('cameraButton');
+        const decodeButton = document.getElementById('decodeButton');
+        const buttonText = document.getElementById('buttonText');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const outputArea = document.getElementById('outputArea');
+        const aiResponse = document.getElementById('aiResponse');
+        const sourcesContainer = document.getElementById('sourcesContainer');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+
+        // State variables
+        let videoStream = null;
+        let capturedImageBase64 = null;
+        let isCameraActive = false;
+
+        // Ensure elements are hidden/visible correctly on load
+        document.addEventListener('DOMContentLoaded', () => {
+            imagePreviewElement.classList.add('hidden');
+            videoElement.classList.add('hidden');
+            mediaPlaceholder.classList.remove('hidden');
+        });
+
+
+        /**
+         * System instruction defining the AI's role and output format for image analysis.
+         */
+        const systemPrompt = `
+            Act as a certified professional dog behavior expert. You are analyzing an image of a dog provided by the user, along with any contextual text description.
+            Your goal is to analyze the visual body language in the image, considering the context.
+            Provide a concise, empathetic, and authoritative response in Markdown.
+
+            Your output MUST contain two distinct, bolded sections based on established canine behavioral science:
+            1. **Interpretation**: State the dog's likely emotional state, intent, or need based on the visual cues (ears, tail, posture, gaze).
+            2. **Actionable Advice**: Offer 1-2 practical, immediate steps the owner should take based on the interpretation, referencing the captured moment.
+
+            Do not include any introductory or concluding remarks outside of the two sections.
+            The response must be grounded in reliable external sources.
+        `;
+
+        /**
+         * Stops the current camera stream if one is active.
+         */
+        function stopCamera() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+                isCameraActive = false;
+                videoElement.srcObject = null;
+                cameraButton.textContent = "Use Camera";
+            }
+        }
+
+        /**
+         * Toggles the live camera stream.
+         */
+        async function toggleCamera() {
+            if (isCameraActive) {
+                // If camera is active, stop it
+                stopCamera();
+                videoElement.classList.add('hidden');
+                mediaPlaceholder.classList.remove('hidden');
+                captureButton.disabled = true;
+                return;
+            }
+
+            // Hide placeholder and previous media
+            mediaPlaceholder.classList.add('hidden');
+            imagePreviewElement.classList.add('hidden');
+            videoElement.classList.remove('hidden');
+            videoMessage.classList.add('hidden');
+            
+            // Activate camera
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoElement.srcObject = stream;
+                videoStream = stream;
+                isCameraActive = true;
+                videoElement.play(); // Start playback
+                cameraButton.textContent = "Stop Camera";
+                captureButton.disabled = false;
+
+                // Ensure video controls are off during live stream
+                videoElement.removeAttribute('controls');
+                
+            } catch (err) {
+                console.error("Error accessing the camera: ", err);
+                videoElement.classList.add('hidden');
+                mediaPlaceholder.classList.remove('hidden');
+                videoMessage.textContent = 'Camera access failed. Please ensure you are on HTTPS and granted permissions.';
+                videoMessage.classList.remove('hidden');
+                captureButton.disabled = true;
+                isCameraActive = false;
+            }
+        }
+
+        /**
+         * Handles file selection (Video or Image) and loads it into the appropriate element.
+         */
+        function handleFileSelect(event, fileType) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Stop camera if running
+            stopCamera();
+            
+            // Hide placeholder and error messages
+            mediaPlaceholder.classList.add('hidden');
+            hideError();
+
+            const fileUrl = URL.createObjectURL(file);
+            
+            if (fileType === 'video') {
+                imagePreviewElement.classList.add('hidden');
+                videoElement.src = fileUrl;
+                videoElement.classList.remove('hidden');
+                captureButton.disabled = false;
+                
+                // Show controls for scrubbing uploaded video
+                videoElement.setAttribute('controls', 'true');
+                
+                // Reset captured image state
+                capturedImageBase64 = null;
+                decodeButton.disabled = true;
+
+            } else if (fileType === 'image') {
+                videoElement.classList.add('hidden');
+                imagePreviewElement.src = fileUrl;
+                imagePreviewElement.classList.remove('hidden');
+                
+                // Set the canvas up to process the image directly upon captureFrame call
+                capturedImageBase64 = null; 
+                captureButton.disabled = false;
+                decodeButton.disabled = true; 
+            }
+        }
+
+        /**
+         * Captures a single frame from the current media source (live video, uploaded video, or uploaded image).
+         */
+        function captureFrame() {
+            const isVideoReady = !videoElement.classList.contains('hidden') && videoElement.readyState >= 2;
+            const isImageReady = !imagePreviewElement.classList.contains('hidden') && imagePreviewElement.src;
+
+            if (!isVideoReady && !isImageReady) {
+                showError("Please load media (live camera, video, or image) before capturing a frame.");
+                return;
+            }
+            
+            // Determine source dimensions
+            let source = isImageReady ? imagePreviewElement : videoElement;
+            const sourceWidth = source.naturalWidth || source.videoWidth;
+            const sourceHeight = source.naturalHeight || source.videoHeight;
+            
+            if (sourceWidth === 0 || sourceHeight === 0) {
+                 showError("Media source is not ready. Please ensure the video is playing or the image has fully loaded.");
+                 return;
+            }
+
+            // Set canvas dimensions
+            capturedCanvas.width = sourceWidth;
+            capturedCanvas.height = sourceHeight;
+
+            // Draw the current frame/image onto the canvas
+            const ctx = capturedCanvas.getContext('2d');
+            ctx.drawImage(source, 0, 0, sourceWidth, sourceHeight);
+
+            // Convert canvas content to a base64 data URL
+            const dataUrl = capturedCanvas.toDataURL('image/jpeg', 0.8); // 80% quality for smaller size
+            
+            // Format for Gemini API (remove the data URI header)
+            capturedImageBase64 = dataUrl.split(',')[1];
+            
+            // Display the captured image preview (important for uploaded video/live stream confirmation)
+            imagePreviewElement.src = dataUrl;
+            imagePreviewElement.classList.remove('hidden');
+            videoElement.classList.add('hidden'); // Hide video element
+
+            // Update UI state
+            captureButton.textContent = "Capture New Frame";
+            decodeButton.disabled = false;
+            hideError();
+        }
+
+        /**
+         * Utility function to handle API calls with exponential backoff for retries.
+         */
+        async function fetchWithRetries(url, options, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 429) {
+                        if (i < retries - 1) {
+                            const delay = Math.pow(2, i) * 1000; // Exponential backoff: 1s, 2s, 4s
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue;
+                        }
+                    }
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response;
+                } catch (error) {
+                    if (i === retries - 1) throw error;
+                    const delay = Math.pow(2, i) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        /**
+         * 3. Main function to call the Gemini API with the image and text prompt.
+         */
+        async function decodeBodyLanguage() {
+            if (!capturedImageBase64) {
+                showError("Please capture an image of your dog before analyzing.");
+                return;
+            }
+            
+            const userQuery = inputElement.value.trim() || "Analyze the body language of the dog in this photo.";
+
+            // UI State: Loading
+            setLoading(true);
+            hideError();
+
+            const apiUrl = `${API_BASE_URL}/${MODEL_NAME}:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ 
+                    parts: [
+                        { text: userQuery },
+                        {
+                            inlineData: {
+                                mimeType: "image/jpeg",
+                                data: capturedImageBase64
+                            }
+                        }
+                    ]
+                }],
+                // Enable Google Search grounding
+                tools: [{ "google_search": {} }],
+                // Apply the expert persona
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            try {
+                const response = await fetchWithRetries(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    const text = candidate.content.parts[0].text;
+                    let sources = [];
+
+                    // Extract grounding sources
+                    const groundingMetadata = candidate.groundingMetadata;
+                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                        sources = groundingMetadata.groundingAttributions
+                            .map(attribution => ({
+                                uri: attribution.web?.uri,
+                                title: attribution.web?.title,
+                            }))
+                            .filter(source => source.uri && source.title);
+                    }
+
+                    displayResults(text, sources);
+
+                } else {
+                    throw new Error("Received an empty or malformed response from the AI.");
+                }
+
+            } catch (error) {
+                console.error('API Call Error:', error);
+                showError(`Failed to analyze the image. Please try again. (${error.message})`);
+            } finally {
+                // UI State: Done
+                setLoading(false);
+            }
+        }
+
+        /**
+         * Updates the UI to show the AI response and sources.
+         */
+        function displayResults(text, sources) {
+            // Simple Markdown-to-HTML conversion for bolding and paragraphs
+            let htmlContent = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-woofy-dark">$1</strong>') // Bold text
+                .replace(/\n\n/g, '</p><p class="mt-2">') // Paragraphs
+                .replace(/\n/g, '<br/>'); // Line breaks
+
+            aiResponse.innerHTML = `<p>${htmlContent}</p>`;
+            outputArea.classList.remove('hidden');
+
+            // Display Sources
+            sourcesContainer.innerHTML = '';
+            if (sources.length > 0) {
+                const sourceListHtml = sources.map(source =>
+                    `<a href="${source.uri}" target="_blank" rel="noopener noreferrer" class="text-woofy-blue hover:underline block text-xs">
+                        • ${source.title}
+                    </a>`
+                ).join('');
+
+                sourcesContainer.innerHTML = `
+                    <p class="font-semibold mb-1 text-gray-600">Sources used for grounding this advice:</p>
+                    <div class="space-y-1">
+                        ${sourceListHtml}
+                    </div>
+                `;
+            }
+        }
+
+        /**
+         * Manages the loading state of the button and input.
+         */
+        function setLoading(isLoading) {
+            decodeButton.disabled = isLoading || !capturedImageBase64;
+            captureButton.disabled = isLoading || (!isCameraActive && !videoElement.src && !imagePreviewElement.src);
+            inputElement.disabled = isLoading;
+
+            if (isLoading) {
+                buttonText.textContent = 'Analyzing...';
+                loadingSpinner.classList.remove('hidden');
+            } else {
+                buttonText.textContent = 'Analyze Photo';
+                loadingSpinner.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Displays an error message.
+         */
+        function showError(message) {
+            errorText.textContent = message;
+            errorMessage.classList.remove('hidden');
+            outputArea.classList.add('hidden');
+        }
+
+        /**
+         * Hides any existing error message.
+         */
+        function hideError() {
+            errorMessage.classList.add('hidden');
+        }
+
+    </script>
+</body>
+</html>
