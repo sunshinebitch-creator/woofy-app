@@ -12,11 +12,11 @@
             theme: {
                 extend: {
                     colors: {
-                        'woofy-blue': '#10b981', // Emerald green
-                        'woofy-dark': '#1f2937', // Dark gray
-                        'woofy-light': '#f9fafb', // Light gray/off-white
-                        'woofy-red': '#ef4444', // Red for capture button
-                        'woofy-yellow': '#f59e0b', // Amber for upload
+                        'woofy-blue': '#10b981', // Emerald green (Primary)
+                        'woofy-dark': '#1f2937', // Dark gray (Text/Header)
+                        'woofy-light': '#f9fafb', // Light gray/off-white (Background)
+                        'woofy-red': '#ef4444', // Red (Action/WOOF button)
+                        'woofy-yellow': '#f59e0b', // Amber (Secondary Upload)
                     },
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
@@ -76,6 +76,12 @@
         /* File Input Styling */
         input[type="file"] {
             display: none;
+        }
+
+        /* Highlight the media area when an image is ready for analysis */
+        .media-ready {
+            border: 4px solid #10b981 !important; /* Woofy Blue highlight */
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
         }
     </style>
 </head>
@@ -140,8 +146,10 @@
                 <!-- Capture Button (shared for live camera and uploaded video) -->
                 <button id="captureButton" onclick="captureFrame()" disabled
                     class="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-woofy-red text-white font-bold text-base rounded-full shadow-lg hover:shadow-woofy-red/50 transform hover:scale-[1.01] transition duration-200 focus:outline-none focus:ring-4 focus:ring-woofy-red/70 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
-                      <path fill-rule="evenodd" d="M1 8a2 2 0 0 1 2-2h3.5a.5.5 0 0 1 0 1H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a.5.5 0 0 1 1 0v3a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8Zm15 0a2 2 0 0 0-2-2h-3.5a.5.5 0 0 0 0 1H17a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1v-3a.5.5 0 0 0-1 0v3a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Z" clip-rule="evenodd" />
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+                        <path d="M4.5 4.5a3 3 0 00-3 3v9a3 3 0 003 3h15a3 3 0 003-3v-9a3 3 0 00-3-3h-1.373a1.5 1.5 0 01-1.06-.395l-1.428-1.428A1.5 1.5 0 0013.06 2.25h-4.125a1.5 1.5 0 00-1.06.395L6.873 7.5a.75.75 0 01-.53.197H4.5z" />
+                        <path fill-rule="evenodd" d="M12 12a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                        <path fill-rule="evenodd" d="M12 18a6 6 0 100-12 6 6 0 000 12zM12 16a4 4 0 100-8 4 4 0 000 8z" clip-rule="evenodd" />
                     </svg>
                     <span id="captureButtonText">Capture Frame</span>
                 </button>
@@ -153,16 +161,16 @@
                 <h2 class="step-title">
                     <span>2. Add Context (Optional)</span>
                 </h2>
-                <textarea id="bodyLanguageInput" rows="2" placeholder="Example: He just saw a squirrel / She is waiting for me to throw the ball."
+                <textarea id="bodyLanguageInput" rows="2" placeholder="Example: They are meeting a new dog / She is waiting for me to throw the ball."
                     class="w-full p-3 border border-gray-300 rounded-xl focus:border-woofy-blue focus:ring-1 focus:ring-woofy-blue transition duration-150 resize-none text-gray-700"></textarea>
             </section>
 
-            <!-- 3. Action Button -->
+            <!-- 3. Action Button (The "WOOF!" button) -->
             <div class="flex justify-center mb-8">
                 <button id="decodeButton" onclick="decodeBodyLanguage()" disabled
-                    class="flex items-center justify-center space-x-2 px-8 py-3 bg-woofy-blue text-white font-bold text-lg rounded-full shadow-lg hover:shadow-woofy-blue/50 transform hover:scale-[1.02] transition duration-200 focus:outline-none focus:ring-4 focus:ring-woofy-blue/70 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed">
-                    <span id="buttonText">Analyze Photo</span>
-                    <div id="loadingSpinner" class="spinner hidden"></div>
+                    class="flex items-center justify-center space-x-2 px-12 py-5 bg-woofy-red text-white font-black text-2xl uppercase rounded-full shadow-2xl shadow-woofy-red/40 transform hover:scale-[1.05] transition duration-200 focus:outline-none focus:ring-8 focus:ring-woofy-red/80 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    <span id="buttonText">WOOF!</span>
+                    <div id="loadingSpinner" class="spinner hidden w-6 h-6 border-4"></div>
                 </button>
             </div>
 
@@ -213,6 +221,7 @@
         const sourcesContainer = document.getElementById('sourcesContainer');
         const errorMessage = document.getElementById('errorMessage');
         const errorText = document.getElementById('errorText');
+        const mediaArea = document.getElementById('mediaArea'); // Reference for styling
 
         // State variables
         let videoStream = null;
@@ -231,13 +240,13 @@
          * System instruction defining the AI's role and output format for image analysis.
          */
         const systemPrompt = `
-            Act as a certified professional dog behavior expert. You are analyzing an image of a dog provided by the user, along with any contextual text description.
-            Your goal is to analyze the visual body language in the image, considering the context.
+            Act as a certified professional dog behavior expert. You are analyzing an image provided by the user, which may contain one or multiple dogs, along with any contextual text description.
+            Your goal is to analyze all visual body language cues, paying special attention to **inter-dog communication, spatial relationships, and dynamic interaction signals** (e.g., play bows, tension, resource guarding, appeasement).
             Provide a concise, empathetic, and authoritative response in Markdown.
 
             Your output MUST contain two distinct, bolded sections based on established canine behavioral science:
-            1. **Interpretation**: State the dog's likely emotional state, intent, or need based on the visual cues (ears, tail, posture, gaze).
-            2. **Actionable Advice**: Offer 1-2 practical, immediate steps the owner should take based on the interpretation, referencing the captured moment.
+            1. **Interpretation**: State the dogs' likely emotional states and the overall nature of their interaction (e.g., appropriate play, stress signals, resource conflict).
+            2. **Actionable Advice**: Offer 1-2 practical, immediate steps the owner should take based on the interaction dynamic, referencing the captured moment.
 
             Do not include any introductory or concluding remarks outside of the two sections.
             The response must be grounded in reliable external sources.
@@ -274,14 +283,14 @@
             imagePreviewElement.classList.add('hidden');
             videoElement.classList.remove('hidden');
             videoMessage.classList.add('hidden');
+            mediaArea.classList.remove('media-ready'); // Remove highlight
 
-            // --- FIX START: Request the rear-facing camera first ---
+            // Request the rear-facing camera first
             const videoConstraints = {
                 video: {
                     facingMode: 'environment' // Request rear camera
                 }
             };
-            // --- FIX END ---
 
             // Activate camera
             try {
@@ -296,7 +305,7 @@
                 videoElement.removeAttribute('controls');
 
             } catch (err) {
-                // Fallback: If 'environment' fails (e.g., on a desktop with no rear camera), try any camera.
+                // Fallback: If 'environment' fails, try any camera.
                 try {
                     let stream = await navigator.mediaDevices.getUserMedia({ video: true });
                     videoElement.srcObject = stream;
@@ -334,6 +343,7 @@
             hideError();
 
             const fileUrl = URL.createObjectURL(file);
+            mediaArea.classList.remove('media-ready'); // Remove highlight initially
 
             if (fileType === 'video') {
                 imagePreviewElement.classList.add('hidden');
@@ -353,17 +363,23 @@
                 imagePreviewElement.src = fileUrl;
                 imagePreviewElement.classList.remove('hidden');
 
-                // Set the canvas up to process the image directly upon captureFrame call
+                // FIX: When the image loads, automatically capture the frame to generate Base64 data.
+                imagePreviewElement.onload = () => {
+                    captureFrame(true); // true tells captureFrame to flash the button text
+                    imagePreviewElement.onload = null; // Remove the listener
+                };
+
+                // We reset this state, captureFrame() will enable it upon successful capture
                 capturedImageBase64 = null;
-                captureButton.disabled = false;
                 decodeButton.disabled = true;
             }
         }
 
         /**
          * Captures a single frame from the current media source (live video, uploaded video, or uploaded image).
+         * @param {boolean} isImageUpload - True if called automatically after an image upload.
          */
-        function captureFrame() {
+        function captureFrame(isImageUpload = false) {
             const isVideoReady = !videoElement.classList.contains('hidden') && videoElement.readyState >= 2;
             const isImageReady = !imagePreviewElement.classList.contains('hidden') && imagePreviewElement.src;
 
@@ -405,6 +421,17 @@
             captureButton.textContent = "Capture New Frame";
             decodeButton.disabled = false;
             hideError();
+            mediaArea.classList.add('media-ready'); // Highlight that analysis is ready!
+
+            // If we automatically captured an uploaded image, we update the capture button text briefly
+            if (isImageUpload) {
+                captureButton.textContent = "Image Ready!";
+                setTimeout(() => {
+                    if (captureButton.textContent === "Image Ready!") {
+                        captureButton.textContent = "Capture New Frame"; // Revert after a moment
+                    }
+                }, 1500);
+            }
         }
 
         /**
@@ -438,7 +465,7 @@
          */
         async function decodeBodyLanguage() {
             if (!capturedImageBase64) {
-                showError("Please capture an image of your dog before analyzing.");
+                showError("Please capture an image of your dog before analyzing. If you uploaded a photo, wait for the 'WOOF!' button to activate.");
                 return;
             }
 
@@ -447,6 +474,7 @@
             // UI State: Loading
             setLoading(true);
             hideError();
+            mediaArea.classList.remove('media-ready'); // Remove highlight while analyzing
 
             const apiUrl = `${API_BASE_URL}/${MODEL_NAME}:generateContent?key=${apiKey}`;
 
@@ -548,10 +576,10 @@
             inputElement.disabled = isLoading;
 
             if (isLoading) {
-                buttonText.textContent = 'Analyzing...';
+                buttonText.textContent = 'ANALYZING...';
                 loadingSpinner.classList.remove('hidden');
             } else {
-                buttonText.textContent = 'Analyze Photo';
+                buttonText.textContent = 'WOOF!';
                 loadingSpinner.classList.add('hidden');
             }
         }
